@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Request a Hall Pass – Mrs. Williams</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #cc0000; --red-dark: #a30000; --black: #111111;
+    --white: #ffffff; --off-white: #f7f7f7; --gray: #e5e5e5;
+    --green: #1a7a3c; --radius: 18px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Open Sans', sans-serif;
+    background: var(--off-white);
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+  }
+
+  /* HEADER */
+  .header { background: var(--black); border-bottom: 5px solid var(--red); }
+  .header-inner { display: flex; align-items: center; gap: 18px; padding: 18px 36px; }
+  .header-logo { width: 64px; height: 64px; object-fit: contain; background: var(--white); border-radius: 10px; padding: 4px; flex-shrink: 0; }
+  .header-text .title { font-family: 'Oswald', sans-serif; font-size: 1.7rem; font-weight: 700; color: var(--white); letter-spacing: 1.5px; text-transform: uppercase; line-height: 1.1; }
+  .header-text .title span { color: var(--red); }
+  .header-text .sub { font-size: 0.85rem; color: rgba(255,255,255,0.5); font-weight: 600; margin-top: 3px; }
+  .header-stripe { height: 5px; background: repeating-linear-gradient(90deg, var(--red) 0,var(--red) 40px,var(--black) 40px,var(--black) 50px); }
+
+  /* MAIN */
+  .main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 36px 20px; }
+  .card { background: var(--white); border-radius: var(--radius); box-shadow: 0 6px 32px rgba(0,0,0,0.12); width: 100%; max-width: 560px; overflow: hidden; }
+
+  /* SCREENS */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ── IDLE SCREEN ── */
+  .idle-screen {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 60px 36px; text-align: center; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .idle-screen:hover { background: #fafafa; }
+  .idle-icon { font-size: 5rem; margin-bottom: 20px; }
+  .idle-screen h2 { font-family: 'Oswald', sans-serif; font-size: 2rem; font-weight: 700; color: var(--black); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; }
+  .idle-screen p { font-size: 1rem; color: #777; font-weight: 600; line-height: 1.6; margin-bottom: 32px; }
+  .idle-btn { background: var(--red); color: var(--white); border: none; padding: 18px 48px; border-radius: 12px; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 1.2rem; letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; box-shadow: 0 5px 18px rgba(204,0,0,0.35); transition: all 0.15s; }
+  .idle-btn:hover { background: var(--red-dark); transform: translateY(-2px); box-shadow: 0 8px 22px rgba(204,0,0,0.4); }
+
+  /* ── FORM SCREEN ── */
+  .card-header { background: var(--black); padding: 22px 28px; border-bottom: 3px solid var(--red); }
+  .card-header h2 { font-family: 'Oswald', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--white); text-transform: uppercase; letter-spacing: 1px; }
+  .card-header p { font-size: 0.85rem; color: rgba(255,255,255,0.5); font-weight: 600; margin-top: 4px; }
+  .card-body { padding: 28px; }
+
+  .form-row { display: flex; gap: 14px; margin-bottom: 20px; }
+  .form-group { display: flex; flex-direction: column; gap: 7px; flex: 1; }
+  .form-group label { font-weight: 700; font-size: 0.8rem; color: #777; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-group input { padding: 15px 16px; border: 2.5px solid var(--gray); border-radius: 10px; font-family: 'Open Sans', sans-serif; font-size: 1.05rem; font-weight: 600; color: var(--black); background: var(--white); outline: none; transition: border 0.2s; }
+  .form-group input:focus { border-color: var(--red); }
+
+  .dest-label { font-weight: 700; font-size: 0.8rem; color: #777; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .dest-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
+  .dest-option { border: 2.5px solid var(--gray); border-radius: 12px; padding: 16px 8px; text-align: center; cursor: pointer; transition: all 0.15s; user-select: none; }
+  .dest-option:hover { border-color: #bbb; background: #fafafa; }
+  .dest-option.selected { border-color: var(--red); background: #fff5f5; }
+  .dest-option .dest-icon { font-size: 1.8rem; margin-bottom: 6px; }
+  .dest-option .dest-name { font-size: 0.85rem; font-weight: 700; color: var(--black); }
+
+  .form-error { color: var(--red); font-size: 0.88rem; font-weight: 700; margin-bottom: 14px; display: none; }
+
+  .form-actions { display: flex; gap: 12px; }
+  .submit-btn { flex: 1; padding: 16px; background: var(--red); color: var(--white); border: none; border-radius: 10px; font-family: 'Oswald', sans-serif; font-size: 1.1rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 14px rgba(204,0,0,0.3); transition: all 0.15s; }
+  .submit-btn:hover { background: var(--red-dark); transform: translateY(-1px); }
+  .submit-btn:disabled { background: #aaa; box-shadow: none; cursor: not-allowed; transform: none; }
+  .back-btn { padding: 16px 22px; background: transparent; border: 2.5px solid var(--gray); color: #777; border-radius: 10px; font-family: 'Oswald', sans-serif; font-size: 1rem; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
+  .back-btn:hover { border-color: #999; color: var(--black); }
+
+  /* ── PENDING SCREEN ── */
+  .status-screen { padding: 50px 32px; text-align: center; }
+  .status-icon { font-size: 4.5rem; margin-bottom: 18px; }
+  .pending-icon-anim { animation: pendingBob 1.5s ease-in-out infinite; display: inline-block; }
+  @keyframes pendingBob { 0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);} }
+  .status-screen h2 { font-family: 'Oswald', sans-serif; font-size: 1.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .status-screen h2.pending-title { color: var(--black); }
+  .status-screen h2.approved-title { color: var(--green); }
+  .status-screen h2.denied-title { color: var(--red); }
+  .status-name { font-family: 'Oswald', sans-serif; font-size: 1.1rem; display: inline-block; padding: 10px 20px; border-radius: 10px; margin: 10px 0 16px; font-weight: 600; letter-spacing: 0.5px; }
+  .status-name.pending { background: #fffbeb; border: 2px solid #fbbf24; color: #92400e; }
+  .status-name.approved { background: #e8f5ee; border: 2px solid #6ee7b7; color: var(--green); }
+  .status-name.denied { background: #fff5f5; border: 2px solid var(--red); color: var(--red-dark); }
+  .status-message { font-size: 0.95rem; font-weight: 600; color: #666; line-height: 1.7; margin-bottom: 28px; max-width: 380px; margin-left: auto; margin-right: auto; }
+  .cancel-link { background: transparent; border: 2px solid var(--gray); color: #888; font-family: 'Open Sans', sans-serif; font-weight: 700; font-size: 0.85rem; padding: 10px 22px; border-radius: 8px; cursor: pointer; transition: all 0.15s; }
+  .cancel-link:hover { border-color: var(--red); color: var(--red); }
+
+  /* approved timer */
+  .approved-timer-wrap { margin: 0 auto 28px; }
+  .approved-timer-label { font-size: 0.75rem; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .approved-timer { font-family: 'Oswald', sans-serif; font-size: 3.5rem; color: var(--black); font-weight: 700; letter-spacing: 4px; }
+  .approved-timer.warning { color: var(--red); }
+
+  /* auto-reset countdown */
+  .reset-bar { margin-top: 20px; font-size: 0.8rem; color: #bbb; font-weight: 600; }
+  .reset-bar span { color: var(--red); font-weight: 800; }
+
+  .done-btn { background: var(--black); color: var(--white); border: none; padding: 14px 36px; border-radius: 10px; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 1rem; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: background 0.15s; }
+  .done-btn:hover { background: #333; }
+
+  /* FOOTER */
+  .footer { text-align: center; padding: 14px; font-size: 0.75rem; color: #bbb; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <img class="header-logo" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS__mC142JbJZ1ugNnC-wU4NvNn67AZKL5QSg&s" alt="Logo" onerror="this.style.display='none'">
+    <div class="header-text">
+      <div class="title">Hall Pass <span>Request</span></div>
+      <div class="sub">Mrs. Williams' Classroom Kiosk</div>
+    </div>
+  </div>
+  <div class="header-stripe"></div>
+</div>
+
+<div class="main">
+  <div class="card">
+
+    <!-- IDLE -->
+    <div class="screen active" id="screen-idle">
+      <div class="idle-screen" onclick="goToForm()">
+        <div class="idle-icon">🚶</div>
+        <h2>Need a Hall Pass?</h2>
+        <p>Tap the button below to send a request<br>to Mrs. Williams for approval.</p>
+        <button class="idle-btn" onclick="goToForm()">Request a Pass →</button>
+      </div>
+    </div>
+
+    <!-- FORM -->
+    <div class="screen" id="screen-form">
+      <div class="card-header">
+        <h2>✏️ Fill Out Your Request</h2>
+        <p>Enter your name, choose your destination, then submit.</p>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Name</label>
+            <input type="text" id="studentFirst" placeholder="First name" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Last Name</label>
+            <input type="text" id="studentLast" placeholder="Last name" autocomplete="off">
+          </div>
+        </div>
+        <div class="dest-label">Where are you going?</div>
+        <div class="dest-grid">
+          <div class="dest-option selected" data-dest="Restroom" onclick="selectDest(this)"><div class="dest-icon">🚻</div><div class="dest-name">Restroom</div></div>
+          <div class="dest-option" data-dest="Office" onclick="selectDest(this)"><div class="dest-icon">🏫</div><div class="dest-name">Office</div></div>
+          <div class="dest-option" data-dest="Nurse" onclick="selectDest(this)"><div class="dest-icon">🩺</div><div class="dest-name">Nurse</div></div>
+          <div class="dest-option" data-dest="Library" onclick="selectDest(this)"><div class="dest-icon">📚</div><div class="dest-name">Library</div></div>
+          <div class="dest-option" data-dest="Water Fountain" onclick="selectDest(this)"><div class="dest-icon">💧</div><div class="dest-name">Water Fountain</div></div>
+          <div class="dest-option" data-dest="Other" onclick="selectDest(this)"><div class="dest-icon">📍</div><div class="dest-name">Other</div></div>
+        </div>
+        <div class="form-error" id="formError">⚠️ Please enter both your first and last name.</div>
+        <div class="form-actions">
+          <button class="back-btn" onclick="goToIdle()">← Back</button>
+          <button class="submit-btn" id="submitBtn" onclick="submitRequest()">Send Request →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PENDING -->
+    <div class="screen" id="screen-pending">
+      <div class="status-screen">
+        <div class="status-icon"><span class="pending-icon-anim">⏳</span></div>
+        <h2 class="pending-title">Waiting for Approval…</h2>
+        <div class="status-name pending" id="pendingName"></div>
+        <p class="status-message">Your request has been sent to Mrs. Williams. Please remain at your seat and wait for her to approve it before leaving.</p>
+        <button class="cancel-link" onclick="cancelRequest()">Cancel My Request</button>
+      </div>
+    </div>
+
+    <!-- APPROVED -->
+    <div class="screen" id="screen-approved">
+      <div class="status-screen">
+        <div class="status-icon">✅</div>
+        <h2 class="approved-title">Pass Approved!</h2>
+        <div class="status-name approved" id="approvedName"></div>
+        <p class="status-message">You may leave the classroom now. Please return promptly.</p>
+        <div class="approved-timer-wrap">
+          <div class="approved-timer-label">Time Away</div>
+          <div class="approved-timer" id="approvedTimer">0:00</div>
+        </div>
+        <button class="done-btn" onclick="resetToIdle()">I'm Back ✓</button>
+        <div class="reset-bar">Auto-resets in <span id="autoResetCount">30</span>s</div>
+      </div>
+    </div>
+
+    <!-- DENIED -->
+    <div class="screen" id="screen-denied">
+      <div class="status-screen">
+        <div class="status-icon">❌</div>
+        <h2 class="denied-title">Request Denied</h2>
+        <div class="status-name denied" id="deniedName"></div>
+        <p class="status-message">Mrs. Williams has denied your hall pass request at this time. Please return to your seat.</p>
+        <div class="reset-bar" style="margin-bottom:16px">Returning to home in <span id="deniedResetCount">5</span>s</div>
+        <button class="done-btn" onclick="resetToIdle()">← Go Back</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="footer">Mrs. Williams' Classroom · Hall Pass Kiosk</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, push, onValue, remove, update, off } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const FIREBASE_URL = "https://hall-pass-program-default-rtdb.firebaseio.com/";
+  const app = initializeApp({ databaseURL: FIREBASE_URL });
+  const db = getDatabase(app);
+
+  let selectedDest = 'Restroom';
+  let currentReqId = null;
+  let approvedStartTime = null;
+  let timerInt = null;
+  let autoResetInt = null;
+  let reqListener = null;
+  let passListener = null;
+  let currentFirst = '', currentLast = '';
+
+  // ── SCREEN MANAGER ──
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + id).classList.add('active');
+  }
+
+  window.goToIdle = () => { cleanupListeners(); resetForm(); showScreen('idle'); };
+  window.goToForm = () => showScreen('form');
+
+  window.selectDest = el => {
+    document.querySelectorAll('.dest-option').forEach(d => d.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedDest = el.dataset.dest;
+  };
+
+  // ── SUBMIT ──
+  window.submitRequest = () => {
+    const first = document.getElementById('studentFirst').value.trim();
+    const last = document.getElementById('studentLast').value.trim();
+    const err = document.getElementById('formError');
+    if (!first || !last) { err.style.display = 'block'; return; }
+    err.style.display = 'none';
+    document.getElementById('submitBtn').disabled = true;
+
+    currentFirst = first; currentLast = last;
+    const reqData = { first, last, destination: selectedDest, timestamp: Date.now(), status: 'pending' };
+    const reqRef = push(ref(db, 'requests'), reqData);
+    currentReqId = reqRef.key;
+
+    document.getElementById('pendingName').textContent = `${first} ${last}  →  ${selectedDest}`;
+    showScreen('pending');
+    watchRequest();
+  };
+
+  // ── WATCH REQUEST FOR APPROVAL/DENIAL ──
+  function watchRequest() {
+    if (!currentReqId) return;
+    // Watch for denial (status field changes)
+    const reqRef = ref(db, 'requests/' + currentReqId);
+    reqListener = onValue(reqRef, snap => {
+      const data = snap.val();
+      if (!data) return;
+      if (data.status === 'denied') {
+        cleanupListeners();
+        document.getElementById('deniedName').textContent = `${currentFirst} ${currentLast}`;
+        showScreen('denied');
+        startDeniedCountdown();
+      }
+    });
+
+    // Watch passes for a new approved entry matching this student
+    const passesRef = ref(db, 'passes');
+    passListener = onValue(passesRef, snap => {
+      if (!currentReqId) return;
+      const passes = snap.val() || {};
+      const match = Object.values(passes).find(p =>
+        p.first === currentFirst && p.last === currentLast &&
+        p.via === 'request' && (Date.now() - p.startTime) < 30000
+      );
+      if (match) {
+        approvedStartTime = match.startTime;
+        cleanupListeners();
+        currentReqId = null;
+        document.getElementById('approvedName').textContent = `${currentFirst} ${currentLast}  →  ${selectedDest}`;
+        showScreen('approved');
+        startApprovedTimer();
+        startAutoReset(30);
+      }
+    });
+  }
+
+  // ── CANCEL ──
+  window.cancelRequest = () => {
+    if (currentReqId) {
+      remove(ref(db, 'requests/' + currentReqId));
+      currentReqId = null;
+    }
+    cleanupListeners();
+    goToIdle();
+  };
+
+  // ── TIMERS ──
+  function startApprovedTimer() {
+    clearInterval(timerInt);
+    timerInt = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - approvedStartTime) / 1000);
+      const m = Math.floor(elapsed / 60);
+      const s = elapsed % 60;
+      const el = document.getElementById('approvedTimer');
+      el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+      el.className = 'approved-timer' + (elapsed >= 600 ? ' warning' : '');
+    }, 1000);
+  }
+
+  function startAutoReset(secs) {
+    let remaining = secs;
+    const countEl = document.getElementById('autoResetCount');
+    if (countEl) countEl.textContent = remaining;
+    clearInterval(autoResetInt);
+    autoResetInt = setInterval(() => {
+      remaining--;
+      const el = document.getElementById('autoResetCount');
+      if (el) el.textContent = remaining;
+      if (remaining <= 0) { clearInterval(autoResetInt); resetToIdle(); }
+    }, 1000);
+  }
+
+  function startDeniedCountdown() {
+    let remaining = 5;
+    const countEl = document.getElementById('deniedResetCount');
+    if (countEl) countEl.textContent = remaining;
+    clearInterval(autoResetInt);
+    autoResetInt = setInterval(() => {
+      remaining--;
+      const el = document.getElementById('deniedResetCount');
+      if (el) el.textContent = remaining;
+      if (remaining <= 0) { clearInterval(autoResetInt); resetToIdle(); }
+    }, 1000);
+  }
+
+  // ── RESET ──
+  window.resetToIdle = () => {
+    clearInterval(timerInt); clearInterval(autoResetInt);
+    cleanupListeners();
+    resetForm();
+    showScreen('idle');
+  };
+
+  function cleanupListeners() {
+    if (reqListener && currentReqId) { off(ref(db, 'requests/' + currentReqId)); reqListener = null; }
+    if (passListener) { off(ref(db, 'passes')); passListener = null; }
+  }
+
+  function resetForm() {
+    currentReqId = null; currentFirst = ''; currentLast = '';
+    document.getElementById('studentFirst').value = '';
+    document.getElementById('studentLast').value = '';
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('formError').style.display = 'none';
+    document.querySelectorAll('.dest-option').forEach(d => d.classList.remove('selected'));
+    document.querySelector('.dest-option[data-dest="Restroom"]').classList.add('selected');
+    selectedDest = 'Restroom';
+  }
+</script>
+</body>
+</html>

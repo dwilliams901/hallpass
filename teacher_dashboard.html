@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mrs. Williams – Hall Pass Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #cc0000; --red-dark: #a30000; --black: #111111;
+    --white: #ffffff; --off-white: #f5f5f5; --gray: #e5e5e5;
+    --text: #111111; --text-muted: #666666; --border: #dddddd;
+    --radius: 14px; --shadow: 0 4px 20px rgba(0,0,0,0.12);
+    --green: #1a7a3c; --amber: #b45309;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Open Sans', sans-serif; background: var(--off-white); color: var(--text); min-height: 100vh; }
+
+  .btn { padding: 11px 26px; border-radius: 8px; border: none; font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 1rem; cursor: pointer; transition: all 0.15s; letter-spacing: 1px; text-transform: uppercase; }
+  .btn-success { background: var(--green); color: var(--white); }
+  .btn-success:hover { background: #145e2d; transform: translateY(-1px); }
+  .btn-cancel { background: #444; color: var(--white); font-size: 0.85rem; padding: 9px 18px; }
+  .btn-cancel:hover { background: #222; }
+
+  /* HEADER */
+  .header { background: var(--black); display: flex; flex-direction: column; }
+  .header-main { display: flex; align-items: center; gap: 20px; padding: 16px 32px; border-bottom: 4px solid var(--red); }
+  .header-logo { width: 70px; height: 70px; object-fit: contain; border-radius: 8px; background: var(--white); padding: 4px; flex-shrink: 0; }
+  .header-text { flex: 1; }
+  .header-title { font-family: 'Oswald', sans-serif; font-size: 1.75rem; font-weight: 700; color: var(--white); letter-spacing: 1.5px; text-transform: uppercase; line-height: 1.1; }
+  .header-title span { color: var(--red); }
+  .header-sub { font-size: 0.85rem; color: rgba(255,255,255,0.55); font-weight: 600; margin-top: 3px; }
+  .header-right { text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .teacher-name { font-family: 'Oswald', sans-serif; font-size: 1.2rem; color: var(--white); font-weight: 600; }
+  .teacher-label { font-size: 0.72rem; color: var(--red); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .connection-dot { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: rgba(255,255,255,0.5); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #555; transition: all 0.3s; }
+  .dot.connected { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+  .dot.error { background: var(--red); }
+  .header-stripe { height: 6px; background: repeating-linear-gradient(90deg, var(--red) 0px, var(--red) 40px, var(--black) 40px, var(--black) 50px); }
+
+  /* NAV */
+  .nav-tabs { display: flex; gap: 6px; padding: 18px 32px 0; }
+  .nav-tab { padding: 10px 26px; border-radius: 10px 10px 0 0; border: 2px solid var(--border); border-bottom: none; background: var(--gray); font-family: 'Open Sans', sans-serif; font-weight: 700; font-size: 0.92rem; color: var(--text-muted); cursor: pointer; transition: all 0.2s; position: relative; }
+  .nav-tab.active { background: var(--white); color: var(--red); border-color: var(--border); }
+  .nav-tab:hover:not(.active) { background: #ddd; }
+  .tab-notif { position: absolute; top: -7px; right: -7px; background: var(--red); color: var(--white); border-radius: 20px; padding: 1px 8px; font-size: 0.72rem; font-weight: 800; display: none; min-width: 20px; text-align: center; }
+
+  /* MAIN */
+  .main { padding: 0 32px 32px; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .panel { background: var(--white); border-radius: 0 var(--radius) var(--radius) var(--radius); border: 2px solid var(--border); padding: 28px; box-shadow: var(--shadow); }
+
+  /* SECTION TITLE */
+  .section-title { font-family: 'Oswald', sans-serif; font-size: 1.05rem; font-weight: 600; color: var(--black); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 1px; border-left: 4px solid var(--red); padding-left: 10px; }
+  .badge { background: var(--black); color: var(--white); border-radius: 20px; padding: 2px 11px; font-size: 0.78rem; font-weight: 800; }
+  .badge.warning { background: var(--red); }
+  .badge.amber { background: var(--amber); }
+
+  /* PENDING REQUESTS */
+  .requests-list { display: flex; flex-direction: column; gap: 10px; }
+  .request-card { display: flex; align-items: center; gap: 16px; border: 2px solid #fbbf24; border-left: 5px solid #d97706; border-radius: 12px; background: #fffbeb; padding: 14px 18px; animation: slideIn 0.3s ease; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);} }
+  .request-avatar { width: 44px; height: 44px; border-radius: 50%; background: #d97706; color: var(--white); font-family: 'Oswald', sans-serif; font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .request-info { flex: 1; }
+  .request-name { font-weight: 800; font-size: 1rem; color: var(--black); }
+  .request-dest { font-size: 0.82rem; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+  .request-time { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+  .request-actions { display: flex; gap: 8px; }
+  .btn-approve { background: var(--green); color: var(--white); padding: 9px 20px; border-radius: 8px; border: none; font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 0.9rem; letter-spacing: 0.5px; cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
+  .btn-approve:hover { background: #145e2d; transform: translateY(-1px); }
+  .btn-deny-sm { background: transparent; color: var(--red); border: 2px solid var(--red); padding: 9px 18px; border-radius: 8px; font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 0.9rem; letter-spacing: 0.5px; cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
+  .btn-deny-sm:hover { background: var(--red); color: var(--white); }
+
+  /* MANUAL FORM */
+  .form-header { font-family: 'Oswald', sans-serif; font-size: 0.95rem; font-weight: 600; color: var(--white); background: var(--black); padding: 7px 16px; border-radius: 8px 8px 0 0; text-transform: uppercase; letter-spacing: 1px; display: inline-block; }
+  .send-out-form { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 28px; background: #fafafa; border: 2px solid var(--border); border-top: 3px solid var(--black); border-radius: 0 var(--radius) var(--radius) var(--radius); padding: 18px 16px 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 150px; }
+  .form-group label { font-weight: 700; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; }
+  .form-group input, .form-group select { padding: 11px 14px; border: 2px solid var(--border); border-radius: 8px; font-family: 'Open Sans', sans-serif; font-size: 0.96rem; font-weight: 600; color: var(--text); background: var(--white); outline: none; transition: border 0.2s; }
+  .form-group input:focus, .form-group select:focus { border-color: var(--red); }
+  .btn-red { background: var(--red); color: var(--white); box-shadow: 0 3px 10px rgba(204,0,0,0.3); }
+  .btn-red:hover { background: var(--red-dark); transform: translateY(-1px); }
+
+  /* PASS CARDS */
+  .passes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .pass-card { border: 2px solid var(--border); border-top: 4px solid var(--black); border-radius: var(--radius); background: var(--white); padding: 18px 16px 14px; cursor: pointer; transition: all 0.18s; position: relative; user-select: none; }
+  .pass-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+  .pass-card.selected { border-color: var(--red); border-top-color: var(--red); box-shadow: 0 0 0 3px rgba(204,0,0,0.15); background: #fff8f8; }
+  .pass-card.overdue { border-top-color: var(--red); border-color: var(--red); background: #fff5f5; animation: pulseborder 2s infinite; }
+  @keyframes pulseborder { 0%,100%{box-shadow:0 0 0 0 rgba(204,0,0,0.3);}50%{box-shadow:0 0 0 5px rgba(204,0,0,0.1);} }
+  .pass-card .student-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--black); color: var(--white); font-family: 'Oswald', sans-serif; font-size: 1.25rem; font-weight: 600; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; border: 3px solid var(--red); }
+  .pass-card .student-name { font-weight: 800; font-size: 1rem; margin-bottom: 3px; }
+  .pass-card .destination { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin-bottom: 10px; }
+  .pass-card .timer { font-family: 'Oswald', sans-serif; font-size: 1.6rem; color: var(--black); letter-spacing: 2px; font-weight: 500; }
+  .pass-card.overdue .timer { color: var(--red); font-weight: 700; }
+  .pass-card .overdue-label { font-size: 0.73rem; font-weight: 800; color: var(--red); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+  .pass-card .via-request { font-size: 0.72rem; color: var(--green); font-weight: 700; margin-top: 2px; }
+  .pass-card .check-indicator { position: absolute; top: 12px; right: 12px; width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid var(--border); background: var(--white); display: flex; align-items: center; justify-content: center; font-size: 0.72rem; transition: all 0.15s; }
+  .pass-card.selected .check-indicator { background: var(--red); border-color: var(--red); color: var(--white); }
+
+  /* RETURN BAR */
+  .return-bar { display: flex; align-items: center; gap: 14px; padding: 16px 20px; background: #1a1a1a; border: 2px solid var(--black); border-radius: 10px; margin-top: 6px; flex-wrap: wrap; }
+  .return-bar .selected-info { flex: 1; font-weight: 700; color: var(--white); font-size: 0.95rem; }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 36px 0; color: var(--text-muted); grid-column: 1/-1; }
+  .empty-state .icon { font-size: 2.4rem; margin-bottom: 8px; }
+  .empty-state p { font-weight: 700; font-size: 0.95rem; }
+
+  /* HISTORY */
+  .history-controls { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
+  .history-controls input, .history-controls select { padding: 9px 14px; border: 2px solid var(--border); border-radius: 8px; font-family: 'Open Sans', sans-serif; font-weight: 600; font-size: 0.92rem; background: var(--white); outline: none; }
+  .history-controls input:focus, .history-controls select:focus { border-color: var(--red); }
+  .summary-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 22px; }
+  .summary-card { background: var(--white); border: 2px solid var(--border); border-top: 4px solid var(--red); border-radius: 10px; padding: 16px 14px; text-align: center; }
+  .summary-card .num { font-family: 'Oswald', sans-serif; font-size: 2rem; color: var(--red); line-height: 1; margin-bottom: 5px; font-weight: 700; }
+  .summary-card .lbl { font-size: 0.73rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .history-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  .history-table th { text-align: left; padding: 10px 14px; border-bottom: 3px solid var(--black); font-weight: 700; color: var(--black); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.6px; font-family: 'Oswald', sans-serif; }
+  .history-table td { padding: 11px 14px; border-bottom: 1px solid var(--gray); font-weight: 600; }
+  .history-table tr:hover td { background: var(--off-white); }
+  .duration-pill { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background: #e8f5ee; color: #1a7a3c; }
+  .duration-pill.long { background: #fff3e0; color: #b85c00; }
+  .duration-pill.very-long { background: #ffecec; color: var(--red-dark); }
+  .source-pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+  .source-pill.requested { background: #e8f5ee; color: #1a7a3c; }
+  .source-pill.manual { background: #f0f0f0; color: #666; }
+  .clear-btn { background: transparent; border: 2px solid var(--red); color: var(--red); font-family: 'Open Sans', sans-serif; font-weight: 700; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; }
+  .clear-btn:hover { background: var(--red); color: var(--white); }
+
+  @media (max-width: 600px) {
+    .header-main, .nav-tabs, .main { padding-left: 14px; padding-right: 14px; }
+    .header-title { font-size: 1.3rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-main">
+    <img class="header-logo" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS__mC142JbJZ1ugNnC-wU4NvNn67AZKL5QSg&s" alt="School Logo" onerror="this.style.display='none'">
+    <div class="header-text">
+      <div class="header-title">Hall Pass <span>Tracker</span></div>
+      <div class="header-sub">Classroom Management System</div>
+    </div>
+    <div class="header-right">
+      <div>
+        <div class="teacher-label">Teacher</div>
+        <div class="teacher-name">Mrs. Williams</div>
+      </div>
+      <div class="connection-dot"><div class="dot" id="connDot"></div><span id="connLabel">Connecting…</span></div>
+    </div>
+  </div>
+  <div class="header-stripe"></div>
+</div>
+
+<div class="nav-tabs">
+  <button class="nav-tab active" onclick="switchTab('dashboard')">📋 Dashboard</button>
+  <button class="nav-tab" id="requestsTab" onclick="switchTab('requests')">
+    🔔 Requests
+    <span class="tab-notif" id="requestsBadge">0</span>
+  </button>
+  <button class="nav-tab" onclick="switchTab('history')">📊 History</button>
+</div>
+
+<div class="main">
+
+  <!-- DASHBOARD -->
+  <div id="tab-dashboard" class="tab-content active">
+    <div class="panel">
+      <span class="form-header">✏️ Manual Entry</span>
+      <div class="send-out-form">
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" id="firstName" placeholder="e.g. Maria" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" id="lastName" placeholder="e.g. Johnson" autocomplete="off">
+        </div>
+        <div class="form-group" style="max-width:175px">
+          <label>Destination</label>
+          <select id="destination">
+            <option value="Restroom">🚻 Restroom</option>
+            <option value="Office">🏫 Office</option>
+            <option value="Nurse">🩺 Nurse</option>
+            <option value="Library">📚 Library</option>
+            <option value="Water Fountain">💧 Water Fountain</option>
+            <option value="Other">📍 Other</option>
+          </select>
+        </div>
+        <button class="btn btn-red" onclick="sendOutManual()">Send Out →</button>
+      </div>
+
+      <div class="section-title">
+        Active Passes <span class="badge" id="activeCount">0</span>
+        <span id="overdueNote" style="display:none;align-items:center;gap:6px;">
+          <span class="badge warning" id="overdueCount">0</span>
+          <span style="font-size:0.75rem;color:var(--red);font-family:'Open Sans',sans-serif;text-transform:none;letter-spacing:0;">overdue</span>
+        </span>
+      </div>
+
+      <div class="passes-grid" id="passesGrid">
+        <div class="empty-state"><div class="icon">✅</div><p>All students are in class</p></div>
+      </div>
+
+      <div class="return-bar" id="returnBar" style="display:none">
+        <span class="selected-info" id="returnInfo">Select a pass above</span>
+        <button class="btn btn-success" onclick="markReturned()">✅ Returned to Class</button>
+        <button class="btn btn-cancel" onclick="clearSelection()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REQUESTS -->
+  <div id="tab-requests" class="tab-content">
+    <div class="panel">
+      <div class="section-title">🔔 Pending Student Requests <span class="badge amber" id="pendingCount">0</span></div>
+      <div class="requests-list" id="requestsList">
+        <div class="empty-state"><div class="icon">🟢</div><p>No pending requests</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="tab-history" class="tab-content">
+    <div class="panel">
+      <div class="summary-cards" id="summaryCards"></div>
+      <div class="history-controls">
+        <input type="text" id="searchInput" placeholder="🔍 Search by name..." oninput="renderHistory()">
+        <select id="filterDest" onchange="renderHistory()">
+          <option value="">All Destinations</option>
+          <option value="Restroom">Restroom</option>
+          <option value="Office">Office</option>
+          <option value="Nurse">Nurse</option>
+          <option value="Library">Library</option>
+          <option value="Water Fountain">Water Fountain</option>
+          <option value="Other">Other</option>
+        </select>
+        <button class="clear-btn" onclick="clearHistory()">🗑️ Clear History</button>
+      </div>
+      <div id="historyContainer"></div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const FIREBASE_URL = "https://hall-pass-program-default-rtdb.firebaseio.com/";
+  const app = initializeApp({ databaseURL: FIREBASE_URL });
+  const db = getDatabase(app);
+
+  // Connection indicator
+  import { ref as dbRef, onValue as onVal } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  onVal(dbRef(db, '.info/connected'), snap => {
+    const ok = snap.val();
+    document.getElementById('connDot').className = 'dot ' + (ok ? 'connected' : 'error');
+    document.getElementById('connLabel').textContent = ok ? 'Live' : 'Reconnecting…';
+  });
+
+  let activePasses = {};
+  let pendingRequests = {};
+  let localHistory = JSON.parse(localStorage.getItem('hallpass_history') || '[]');
+  let selectedPassId = null;
+
+  // ── HELPERS ──
+  const getInit = (f,l) => (f[0]||'').toUpperCase()+(l[0]||'').toUpperCase();
+  const dispName = (f,l) => f[0].toUpperCase()+'. '+l.charAt(0).toUpperCase()+l.slice(1);
+  const fmtTime = s => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+  const fmtDT = ts => { const d=new Date(ts); return d.toLocaleDateString()+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); };
+  const timeAgo = ts => { const s=Math.floor((Date.now()-ts)/1000); return s<60?`${s}s ago`:`${Math.floor(s/60)}m ago`; };
+  const saveHist = () => localStorage.setItem('hallpass_history', JSON.stringify(localHistory));
+  const durClass = s => s>=900?'very-long':s>=480?'long':'';
+
+  // ── LISTENERS ──
+  onValue(ref(db,'passes'), snap => { activePasses = snap.val()||{}; renderPasses(); });
+  onValue(ref(db,'requests'), snap => { pendingRequests = snap.val()||{}; renderRequests(); });
+
+  // ── MANUAL SEND ──
+  window.sendOutManual = () => {
+    const first=document.getElementById('firstName').value.trim();
+    const last=document.getElementById('lastName').value.trim();
+    const dest=document.getElementById('destination').value;
+    if(!first||!last){alert('Please enter both first and last name.');return;}
+    push(ref(db,'passes'),{first,last,destination:dest,startTime:Date.now(),via:'manual'});
+    document.getElementById('firstName').value='';
+    document.getElementById('lastName').value='';
+  };
+
+  // ── APPROVE / DENY ──
+  window.approveRequest = reqId => {
+    const r=pendingRequests[reqId]; if(!r)return;
+    push(ref(db,'passes'),{first:r.first,last:r.last,destination:r.destination,startTime:Date.now(),via:'request'});
+    remove(ref(db,'requests/'+reqId));
+  };
+  window.denyRequest = reqId => {
+    update(ref(db,'requests/'+reqId),{status:'denied'});
+    setTimeout(()=>remove(ref(db,'requests/'+reqId)),4000);
+  };
+
+  // ── SELECT / RETURN ──
+  window.selectPass = id => { selectedPassId=selectedPassId===id?null:id; renderPasses(); };
+  window.clearSelection = () => { selectedPassId=null; renderPasses(); };
+  window.markReturned = () => {
+    if(!selectedPassId)return;
+    const p=activePasses[selectedPassId]; if(!p)return;
+    const endTime=Date.now();
+    localHistory.unshift({...p,id:selectedPassId,endTime,durationSecs:Math.floor((endTime-p.startTime)/1000)});
+    saveHist();
+    remove(ref(db,'passes/'+selectedPassId));
+    selectedPassId=null;
+  };
+
+  // ── RENDER PASSES ──
+  function renderPasses(){
+    const grid=document.getElementById('passesGrid');
+    const keys=Object.keys(activePasses);
+    document.getElementById('activeCount').textContent=keys.length;
+    const now=Date.now();
+    const overdue=keys.filter(k=>(now-activePasses[k].startTime)/1000>=600).length;
+    const on=document.getElementById('overdueNote');
+    document.getElementById('overdueCount').textContent=overdue;
+    on.style.display=overdue>0?'inline-flex':'none';
+    if(keys.length===0){
+      grid.innerHTML='<div class="empty-state"><div class="icon">✅</div><p>All students are in class</p></div>';
+      document.getElementById('returnBar').style.display='none'; return;
+    }
+    grid.innerHTML=keys.map(id=>{
+      const p=activePasses[id];
+      const elapsed=Math.floor((now-p.startTime)/1000);
+      const od=elapsed>=600; const sel=id===selectedPassId;
+      return `<div class="pass-card ${od?'overdue':''} ${sel?'selected':''}" onclick="selectPass('${id}')">
+        <div class="check-indicator">${sel?'✓':''}</div>
+        <div class="student-avatar">${getInit(p.first||'?',p.last||'?')}</div>
+        <div class="student-name">${dispName(p.first||'?',p.last||'?')}</div>
+        <div class="destination">${p.destination||''}</div>
+        <div class="timer" id="timer-${id}">${fmtTime(elapsed)}</div>
+        ${od?'<div class="overdue-label">⚠️ Overdue (10+ min)</div>':''}
+        ${p.via==='request'?'<div class="via-request">✅ Student Requested</div>':''}
+      </div>`;
+    }).join('');
+    const rb=document.getElementById('returnBar'),ri=document.getElementById('returnInfo');
+    if(selectedPassId&&activePasses[selectedPassId]){
+      const p=activePasses[selectedPassId];
+      rb.style.display='flex';
+      ri.innerHTML=`<span style="color:var(--red)">${dispName(p.first,p.last)}</span> → ${p.destination}`;
+    } else { selectedPassId=null; rb.style.display='none'; }
+  }
+
+  // ── RENDER REQUESTS ──
+  function renderRequests(){
+    const list=document.getElementById('requestsList');
+    const keys=Object.keys(pendingRequests).filter(k=>pendingRequests[k].status==='pending');
+    const notif=document.querySelector('#requestsTab .tab-notif');
+    document.getElementById('requestsBadge').textContent=keys.length;
+    document.getElementById('pendingCount').textContent=keys.length;
+    notif.style.display=keys.length>0?'inline-block':'none';
+    notif.textContent=keys.length;
+    if(keys.length===0){list.innerHTML='<div class="empty-state"><div class="icon">🟢</div><p>No pending requests</p></div>';return;}
+    list.innerHTML=keys.map(id=>{
+      const r=pendingRequests[id];
+      return `<div class="request-card">
+        <div class="request-avatar">${getInit(r.first||'?',r.last||'?')}</div>
+        <div class="request-info">
+          <div class="request-name">${r.first||''} ${r.last||''}</div>
+          <div class="request-dest">${r.destination||''}</div>
+          <div class="request-time">${timeAgo(r.timestamp||Date.now())}</div>
+        </div>
+        <div class="request-actions">
+          <button class="btn-approve" onclick="approveRequest('${id}')">✅ Approve</button>
+          <button class="btn-deny-sm" onclick="denyRequest('${id}')">✗ Deny</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── TIMER TICK ──
+  setInterval(()=>{
+    Object.keys(activePasses).forEach(id=>{
+      const el=document.getElementById(`timer-${id}`);
+      if(el){
+        const elapsed=Math.floor((Date.now()-activePasses[id].startTime)/1000);
+        el.textContent=fmtTime(elapsed);
+        const card=el.closest('.pass-card');
+        if(elapsed>=600&&card&&!card.classList.contains('overdue'))renderPasses();
+      }
+    });
+  },1000);
+
+  // ── HISTORY ──
+  function renderHistorySummary(){
+    const sc=document.getElementById('summaryCards');if(!sc)return;
+    const total=localHistory.length;
+    const avg=total?Math.round(localHistory.reduce((a,b)=>a+b.durationSecs,0)/total):0;
+    const longest=total?Math.max(...localHistory.map(h=>h.durationSecs)):0;
+    const today=localHistory.filter(h=>new Date(h.endTime).toDateString()===new Date().toDateString()).length;
+    sc.innerHTML=`
+      <div class="summary-card"><div class="num">${total}</div><div class="lbl">Total Passes</div></div>
+      <div class="summary-card"><div class="num">${today}</div><div class="lbl">Today</div></div>
+      <div class="summary-card"><div class="num">${fmtTime(avg)}</div><div class="lbl">Avg Duration</div></div>
+      <div class="summary-card"><div class="num">${fmtTime(longest)}</div><div class="lbl">Longest Pass</div></div>`;
+  }
+  window.renderHistory=()=>{
+    const search=(document.getElementById('searchInput')?.value||'').toLowerCase();
+    const fd=document.getElementById('filterDest')?.value||'';
+    const container=document.getElementById('historyContainer');
+    renderHistorySummary();
+    let rows=localHistory;
+    if(search)rows=rows.filter(h=>(h.first+' '+h.last).toLowerCase().includes(search));
+    if(fd)rows=rows.filter(h=>h.destination===fd);
+    if(rows.length===0){container.innerHTML='<div class="empty-state"><div class="icon">📋</div><p>No history yet</p></div>';return;}
+    container.innerHTML=`<table class="history-table"><thead><tr><th>Student</th><th>Destination</th><th>Source</th><th>Time Out</th><th>Returned</th><th>Duration</th></tr></thead><tbody>
+      ${rows.map(h=>`<tr>
+        <td><strong>${dispName(h.first,h.last)}</strong></td>
+        <td>${h.destination}</td>
+        <td><span class="source-pill ${h.via==='request'?'requested':'manual'}">${h.via==='request'?'Requested':'Manual'}</span></td>
+        <td>${fmtDT(h.startTime)}</td><td>${fmtDT(h.endTime)}</td>
+        <td><span class="duration-pill ${durClass(h.durationSecs)}">${fmtTime(h.durationSecs)}</span></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  };
+  window.clearHistory=()=>{if(confirm('Clear all history?')){localHistory=[];saveHist();window.renderHistory();}};
+  window.switchTab=tab=>{
+    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('tab-'+tab).classList.add('active');
+    ['dashboard','requests','history'].forEach((t,i)=>{if(t===tab)document.querySelectorAll('.nav-tab')[i].classList.add('active');});
+    if(tab==='history')window.renderHistory();
+  };
+</script>
+</body>
+</html>
