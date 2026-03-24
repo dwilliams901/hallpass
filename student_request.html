@@ -195,7 +195,6 @@
           <div class="approved-timer" id="approvedTimer">0:00</div>
         </div>
         <button class="done-btn" onclick="resetToIdle()">I'm Back ✓</button>
-        <div class="reset-bar">Auto-resets in <span id="autoResetCount">30</span>s</div>
       </div>
     </div>
 
@@ -302,7 +301,6 @@
         document.getElementById('approvedName').textContent = `${currentFirst} ${currentLast}  →  ${selectedDest}`;
         showScreen('approved');
         startApprovedTimer();
-        startAutoReset(30);
       }
     });
   }
@@ -327,19 +325,6 @@
       const el = document.getElementById('approvedTimer');
       el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
       el.className = 'approved-timer' + (elapsed >= 600 ? ' warning' : '');
-    }, 1000);
-  }
-
-  function startAutoReset(secs) {
-    let remaining = secs;
-    const countEl = document.getElementById('autoResetCount');
-    if (countEl) countEl.textContent = remaining;
-    clearInterval(autoResetInt);
-    autoResetInt = setInterval(() => {
-      remaining--;
-      const el = document.getElementById('autoResetCount');
-      if (el) el.textContent = remaining;
-      if (remaining <= 0) { clearInterval(autoResetInt); resetToIdle(); }
     }, 1000);
   }
 
