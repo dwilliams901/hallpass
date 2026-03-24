@@ -360,8 +360,19 @@
   window.resetToIdle = () => {
     clearInterval(timerInt); clearInterval(autoResetInt);
     cleanupListeners();
-    // If student taps "I'm Back" or auto-reset fires, close the pass on teacher dashboard
+    // Archive pass to Firebase history and remove from active passes
     if (activePassKey) {
+      const endTime = Date.now();
+      const durationSecs = approvedStartTime ? Math.floor((endTime - approvedStartTime) / 1000) : 0;
+      push(ref(db, 'history'), {
+        first: currentFirst,
+        last: currentLast,
+        destination: selectedDest,
+        startTime: approvedStartTime || endTime,
+        endTime,
+        durationSecs,
+        via: 'request'
+      });
       remove(ref(db, 'passes/' + activePassKey));
       activePassKey = null;
     }
