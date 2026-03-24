@@ -226,6 +226,7 @@
 
   let selectedDest = 'Restroom';
   let currentReqId = null;
+  let activePassKey = null;   // Firebase key of the approved pass
   let approvedStartTime = null;
   let timerInt = null;
   let autoResetInt = null;
@@ -288,12 +289,14 @@
     passListener = onValue(passesRef, snap => {
       if (!currentReqId) return;
       const passes = snap.val() || {};
-      const match = Object.values(passes).find(p =>
+      const matchEntry = Object.entries(passes).find(([, p]) =>
         p.first === currentFirst && p.last === currentLast &&
         p.via === 'request' && (Date.now() - p.startTime) < 30000
       );
-      if (match) {
-        approvedStartTime = match.startTime;
+      if (matchEntry) {
+        const [passKey, passData] = matchEntry;
+        activePassKey = passKey;
+        approvedStartTime = passData.startTime;
         cleanupListeners();
         currentReqId = null;
         document.getElementById('approvedName').textContent = `${currentFirst} ${currentLast}  →  ${selectedDest}`;
@@ -357,6 +360,11 @@
   window.resetToIdle = () => {
     clearInterval(timerInt); clearInterval(autoResetInt);
     cleanupListeners();
+    // If student taps "I'm Back" or auto-reset fires, close the pass on teacher dashboard
+    if (activePassKey) {
+      remove(ref(db, 'passes/' + activePassKey));
+      activePassKey = null;
+    }
     resetForm();
     showScreen('idle');
   };
@@ -367,7 +375,7 @@
   }
 
   function resetForm() {
-    currentReqId = null; currentFirst = ''; currentLast = '';
+    currentReqId = null; activePassKey = null; currentFirst = ''; currentLast = '';
     document.getElementById('studentFirst').value = '';
     document.getElementById('studentLast').value = '';
     document.getElementById('submitBtn').disabled = false;
