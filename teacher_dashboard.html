@@ -271,7 +271,7 @@
 
   let activePasses = {};
   let pendingRequests = {};
-  let localHistory = JSON.parse(localStorage.getItem('hallpass_history') || '[]');
+  let firebaseHistory = {};   // keyed by Firebase push ID, synced in real time
   let selectedPassId = null;
 
   // ── HELPERS ──
@@ -280,12 +280,17 @@
   const fmtTime = s => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
   const fmtDT = ts => { const d=new Date(ts); return d.toLocaleDateString()+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); };
   const timeAgo = ts => { const s=Math.floor((Date.now()-ts)/1000); return s<60?`${s}s ago`:`${Math.floor(s/60)}m ago`; };
-  const saveHist = () => localStorage.setItem('hallpass_history', JSON.stringify(localHistory));
   const durClass = s => s>=900?'very-long':s>=480?'long':'';
 
   // ── LISTENERS ──
   onValue(ref(db,'passes'), snap => { activePasses = snap.val()||{}; renderPasses(); });
   onValue(ref(db,'requests'), snap => { pendingRequests = snap.val()||{}; renderRequests(); });
+  onValue(ref(db,'history'), snap => {
+    firebaseHistory = snap.val()||{};
+    // Re-render history if that tab is active
+    if (document.getElementById('tab-history').classList.contains('active')) window.renderHistory();
+    else renderHistorySummary();
+  });
 
   // ── MANUAL SEND ──
   window.sendOutManual = () => {
@@ -316,8 +321,8 @@
     if(!selectedPassId)return;
     const p=activePasses[selectedPassId]; if(!p)return;
     const endTime=Date.now();
-    localHistory.unshift({...p,id:selectedPassId,endTime,durationSecs:Math.floor((endTime-p.startTime)/1000)});
-    saveHist();
+    const durationSecs=Math.floor((endTime-p.startTime)/1000);
+    push(ref(db,'history'),{...p, endTime, durationSecs});
     remove(ref(db,'passes/'+selectedPassId));
     selectedPassId=null;
   };
@@ -399,12 +404,17 @@
   },1000);
 
   // ── HISTORY ──
+  function historyRows() {
+    // Convert Firebase object to array sorted newest first
+    return Object.values(firebaseHistory).sort((a,b) => (b.endTime||0) - (a.endTime||0));
+  }
   function renderHistorySummary(){
     const sc=document.getElementById('summaryCards');if(!sc)return;
-    const total=localHistory.length;
-    const avg=total?Math.round(localHistory.reduce((a,b)=>a+b.durationSecs,0)/total):0;
-    const longest=total?Math.max(...localHistory.map(h=>h.durationSecs)):0;
-    const today=localHistory.filter(h=>new Date(h.endTime).toDateString()===new Date().toDateString()).length;
+    const rows=historyRows();
+    const total=rows.length;
+    const avg=total?Math.round(rows.reduce((a,b)=>a+b.durationSecs,0)/total):0;
+    const longest=total?Math.max(...rows.map(h=>h.durationSecs)):0;
+    const today=rows.filter(h=>new Date(h.endTime).toDateString()===new Date().toDateString()).length;
     sc.innerHTML=`
       <div class="summary-card"><div class="num">${total}</div><div class="lbl">Total Passes</div></div>
       <div class="summary-card"><div class="num">${today}</div><div class="lbl">Today</div></div>
@@ -416,7 +426,7 @@
     const fd=document.getElementById('filterDest')?.value||'';
     const container=document.getElementById('historyContainer');
     renderHistorySummary();
-    let rows=localHistory;
+    let rows=historyRows();
     if(search)rows=rows.filter(h=>(h.first+' '+h.last).toLowerCase().includes(search));
     if(fd)rows=rows.filter(h=>h.destination===fd);
     if(rows.length===0){container.innerHTML='<div class="empty-state"><div class="icon">📋</div><p>No history yet</p></div>';return;}
@@ -430,59 +440,46 @@
       </tr>`).join('')}
     </tbody></table>`;
   };
-  window.clearHistory=()=>{if(confirm('Clear all history?')){localHistory=[];saveHist();window.renderHistory();}};
+  window.clearHistory=()=>{
+    if(confirm('Clear all history? This cannot be undone.')){
+      remove(ref(db,'history'));
+    }
+  };
 
   // ── EXPORT TO EXCEL ──
   window.exportToExcel = () => {
-    if (!localHistory.length) { alert('No history to export yet.'); return; }
+    const rows = historyRows();
+    if (!rows.length) { alert('No history to export yet.'); return; }
     const btn = document.getElementById('exportBtn');
     btn.disabled = true; btn.textContent = '⏳ Exporting…';
 
-    // Build rows
     const headers = ['Student Name', 'First Name', 'Last Name', 'Destination', 'Source', 'Date', 'Time Out', 'Time Returned', 'Duration (min)', 'Duration (m:ss)'];
-    const rows = localHistory.map(h => {
+    const data = rows.map(h => {
       const dateOut = new Date(h.startTime);
       const dateBack = new Date(h.endTime);
-      const durationMins = (h.durationSecs / 60).toFixed(2);
       return [
-        `${h.first} ${h.last}`,
-        h.first,
-        h.last,
-        h.destination,
+        `${h.first} ${h.last}`, h.first, h.last, h.destination,
         h.via === 'request' ? 'Student Requested' : 'Manual',
         dateOut.toLocaleDateString(),
         dateOut.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
         dateBack.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
-        durationMins,
+        (h.durationSecs / 60).toFixed(2),
         fmtTime(h.durationSecs)
       ];
     });
 
-    // Use SheetJS to build workbook
     const XLSX = window.XLSX;
-    const wsData = [headers, ...rows];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    // Column widths
-    ws['!cols'] = [
-      {wch:20},{wch:14},{wch:14},{wch:18},{wch:18},
-      {wch:12},{wch:12},{wch:14},{wch:14},{wch:12}
-    ];
-
-    // Style header row bold by setting header cells
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    ws['!cols'] = [{wch:20},{wch:14},{wch:14},{wch:18},{wch:18},{wch:12},{wch:12},{wch:14},{wch:14},{wch:12}];
     headers.forEach((_, i) => {
       const cell = ws[XLSX.utils.encode_cell({r:0, c:i})];
       if (cell) cell.s = { font: { bold: true } };
     });
-
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Hall Pass History');
-
-    // Generate filename with today's date
     const today = new Date();
     const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
     XLSX.writeFile(wb, `HallPass_History_${dateStr}.xlsx`);
-
     btn.disabled = false; btn.textContent = '📥 Export to Excel';
   };
   window.switchTab=tab=>{
