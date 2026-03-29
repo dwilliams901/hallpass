@@ -271,8 +271,32 @@
 
   let activePasses = {};
   let pendingRequests = {};
-  let firebaseHistory = {};   // keyed by Firebase push ID, synced in real time
+  let firebaseHistory = {};
   let selectedPassId = null;
+  let knownRequestIds = new Set(); // tracks IDs we've already seen to detect new ones
+  let audioCtx = null;
+
+  // ── ALERT SOUND (Web Audio API — no file needed) ──
+  function playAlertSound() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = audioCtx;
+      // Two-tone chime: high note then slightly lower
+      [[880, 0, 0.18], [660, 0.2, 0.28]].forEach(([freq, startOffset, duration]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + startOffset);
+        gain.gain.setValueAtTime(0, ctx.currentTime + startOffset);
+        gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + startOffset + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startOffset + duration);
+        osc.start(ctx.currentTime + startOffset);
+        osc.stop(ctx.currentTime + startOffset + duration);
+      });
+    } catch(e) { console.warn('Audio alert failed:', e); }
+  }
 
   // ── HELPERS ──
   const getInit = (f,l) => (f[0]||'').toUpperCase()+(l[0]||'').toUpperCase();
@@ -284,7 +308,20 @@
 
   // ── LISTENERS ──
   onValue(ref(db,'passes'), snap => { activePasses = snap.val()||{}; renderPasses(); });
-  onValue(ref(db,'requests'), snap => { pendingRequests = snap.val()||{}; renderRequests(); });
+  onValue(ref(db,'requests'), snap => {
+    const incoming = snap.val()||{};
+    // Detect brand-new pending requests and play alert
+    Object.keys(incoming).forEach(id => {
+      if (incoming[id].status === 'pending' && !knownRequestIds.has(id)) {
+        if (knownRequestIds.size > 0) playAlertSound(); // don't play on initial page load
+        knownRequestIds.add(id);
+      }
+    });
+    // Clean up removed IDs from tracking set
+    knownRequestIds.forEach(id => { if (!incoming[id]) knownRequestIds.delete(id); });
+    pendingRequests = incoming;
+    renderRequests();
+  });
   onValue(ref(db,'history'), snap => {
     firebaseHistory = snap.val()||{};
     // Re-render history if that tab is active
