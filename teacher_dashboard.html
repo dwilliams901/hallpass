@@ -477,6 +477,8 @@
     // Convert Firebase object to array sorted newest first
     return Object.values(firebaseHistory).sort((a,b) => (b.endTime||0) - (a.endTime||0));
   }
+  // Expose for plain-script exportToExcel
+  window._historyRowsForExport = historyRows;
   function renderHistorySummary(){
     const sc=document.getElementById('summaryCards');if(!sc)return;
     const rows=historyRows();
@@ -515,51 +517,60 @@
     }
   };
 
-  // ── EXPORT TO EXCEL ──
-  window.exportToExcel = () => {
-    const btn = document.getElementById('exportBtn');
-    btn.disabled = true; btn.textContent = '⏳ Exporting…';
-    try {
-      const rows = historyRows();
-      if (!rows.length) { alert('No history to export yet.'); btn.disabled = false; btn.textContent = '📥 Export to Excel'; return; }
-
-      const XLSX = window.XLSX;
-      if (!XLSX) throw new Error('SheetJS library not loaded yet. Please wait a moment and try again.');
-
-      const headers = ['Student Name', 'First Name', 'Last Name', 'Destination', 'Source', 'Date', 'Time Out', 'Time Returned', 'Duration (min)', 'Duration (m:ss)'];
-      const data = rows.map(h => {
-        const dateOut = new Date(h.startTime);
-        const dateBack = new Date(h.endTime);
-        return [
-          `${h.first} ${h.last}`, h.first, h.last, h.destination,
-          h.via === 'request' ? 'Student Requested' : 'Manual',
-          dateOut.toLocaleDateString(),
-          dateOut.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
-          dateBack.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
-          parseFloat((h.durationSecs / 60).toFixed(2)),
-          fmtTime(h.durationSecs)
-        ];
-      });
-
-      const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
-      ws['!cols'] = [{wch:20},{wch:14},{wch:14},{wch:18},{wch:18},{wch:12},{wch:12},{wch:14},{wch:14},{wch:12}];
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Hall Pass History');
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-      XLSX.writeFile(wb, `HallPass_History_${dateStr}.xlsx`);
-    } catch(e) {
-      alert('Export failed: ' + e.message);
-      console.error('Export error:', e);
-    }
-    btn.disabled = false; btn.textContent = '📥 Export to Excel';
-  };
   window.switchTab=tab=>{
     document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
     document.getElementById('tab-'+tab).classList.add('active');
     ['dashboard','requests','history'].forEach((t,i)=>{if(t===tab)document.querySelectorAll('.nav-tab')[i].classList.add('active');});
     if(tab==='history')window.renderHistory();
+  };
+</script>
+
+<!-- SheetJS for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+  // exportToExcel lives here (plain script) so XLSX is always in scope
+  window.exportToExcel = function() {
+    var btn = document.getElementById('exportBtn');
+    btn.disabled = true; btn.textContent = '⏳ Exporting…';
+    try {
+      if (typeof XLSX === 'undefined') {
+        throw new Error('SheetJS not loaded. Check your internet connection and try again.');
+      }
+      var rows = window._historyRowsForExport ? window._historyRowsForExport() : [];
+      if (!rows.length) {
+        alert('No history to export yet.');
+        btn.disabled = false; btn.textContent = '📥 Export to Excel';
+        return;
+      }
+      var headers = ['Student Name','First Name','Last Name','Destination','Source','Date','Time Out','Time Returned','Duration (min)','Duration (m:ss)'];
+      var data = rows.map(function(h) {
+        var dateOut  = new Date(h.startTime);
+        var dateBack = new Date(h.endTime);
+        var m = Math.floor(h.durationSecs/60);
+        var s = (h.durationSecs%60).toString().padStart(2,'0');
+        return [
+          h.first+' '+h.last, h.first, h.last, h.destination,
+          h.via === 'request' ? 'Student Requested' : 'Manual',
+          dateOut.toLocaleDateString(),
+          dateOut.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),
+          dateBack.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),
+          parseFloat((h.durationSecs/60).toFixed(2)),
+          m+':'+s
+        ];
+      });
+      var ws = XLSX.utils.aoa_to_sheet([headers].concat(data));
+      ws['!cols'] = [{wch:20},{wch:14},{wch:14},{wch:18},{wch:18},{wch:12},{wch:12},{wch:14},{wch:14},{wch:12}];
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Hall Pass History');
+      var today = new Date();
+      var dateStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+      XLSX.writeFile(wb, 'HallPass_History_'+dateStr+'.xlsx');
+    } catch(e) {
+      alert('Export failed: ' + e.message);
+      console.error('Export error:', e);
+    }
+    btn.disabled = false; btn.textContent = '📥 Export to Excel';
   };
 </script>
 </body>
