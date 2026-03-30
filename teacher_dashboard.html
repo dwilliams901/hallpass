@@ -325,14 +325,13 @@
   onValue(ref(db,'passes'), snap => { activePasses = snap.val()||{}; renderPasses(); });
   onValue(ref(db,'requests'), snap => {
     const incoming = snap.val()||{};
-    // Detect brand-new pending requests and play alert
+    let isFirstLoad = knownRequestIds.size === 0;
     Object.keys(incoming).forEach(id => {
       if (incoming[id].status === 'pending' && !knownRequestIds.has(id)) {
-        if (knownRequestIds.size > 0) playAlertSound(); // don't play on initial page load
         knownRequestIds.add(id);
+        if (!isFirstLoad) window.playAlertSound(); // window. required inside ES6 modules
       }
     });
-    // Clean up removed IDs from tracking set
     knownRequestIds.forEach(id => { if (!incoming[id]) knownRequestIds.delete(id); });
     pendingRequests = incoming;
     renderRequests();
