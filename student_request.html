@@ -198,6 +198,18 @@
       </div>
     </div>
 
+    <!-- RETURNED BY TEACHER -->
+    <div class="screen" id="screen-returned">
+      <div class="status-screen">
+        <div class="status-icon">🏫</div>
+        <h2 class="approved-title">Welcome Back!</h2>
+        <div class="status-name approved" id="returnedName"></div>
+        <p class="status-message">Your teacher has marked you as returned. Thanks for coming back promptly!</p>
+        <div class="reset-bar" style="margin-bottom:16px">Returning to home in <span id="returnedResetCount">4</span>s</div>
+        <button class="done-btn" onclick="resetToIdle()">← Home</button>
+      </div>
+    </div>
+
     <!-- DENIED -->
     <div class="screen" id="screen-denied">
       <div class="status-screen">
@@ -301,8 +313,44 @@
         document.getElementById('approvedName').textContent = `${currentFirst} ${currentLast}  →  ${selectedDest}`;
         showScreen('approved');
         startApprovedTimer();
+        watchForTeacherReturn(passKey);
       }
     });
+  }
+
+  // ── WATCH FOR TEACHER-INITIATED RETURN ──
+  let teacherReturnListener = null;
+  function watchForTeacherReturn(passKey) {
+    const passRef = ref(db, 'passes/' + passKey);
+    teacherReturnListener = onValue(passRef, snap => {
+      if (!snap.val()) {
+        // Pass was removed by teacher — reset to idle
+        off(passRef);
+        teacherReturnListener = null;
+        clearInterval(timerInt);
+        clearInterval(autoResetInt);
+        activePassKey = null;
+        approvedStartTime = null;
+        showTeacherReturnedScreen();
+      }
+    });
+  }
+
+  function showTeacherReturnedScreen() {
+    // Show a brief "Welcome back!" message then reset
+    const el = document.getElementById('returnedName');
+    if (el) el.textContent = `${currentFirst} ${currentLast}`;
+    showScreen('returned');
+    let remaining = 4;
+    const countEl = document.getElementById('returnedResetCount');
+    if (countEl) countEl.textContent = remaining;
+    clearInterval(autoResetInt);
+    autoResetInt = setInterval(() => {
+      remaining--;
+      const el = document.getElementById('returnedResetCount');
+      if (el) el.textContent = remaining;
+      if (remaining <= 0) { clearInterval(autoResetInt); resetToIdle(); }
+    }, 1000);
   }
 
   // ── CANCEL ──
@@ -368,6 +416,7 @@
   function cleanupListeners() {
     if (reqListener && currentReqId) { off(ref(db, 'requests/' + currentReqId)); reqListener = null; }
     if (passListener) { off(ref(db, 'passes')); passListener = null; }
+    if (teacherReturnListener && activePassKey) { off(ref(db, 'passes/' + activePassKey)); teacherReturnListener = null; }
   }
 
   function resetForm() {
