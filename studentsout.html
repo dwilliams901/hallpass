@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Students Out – Hall Pass Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #cc0000; --black: #111111; --white: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: 'Open Sans', sans-serif; background: #0a0a0a; color: var(--white); overflow: hidden; }
+
+  .wrap { display: flex; flex-direction: column; height: 100vh; }
+
+  /* HEADER (matches teacher dashboard) */
+  .header { background: var(--black); display: flex; flex-direction: column; flex-shrink: 0; }
+  .header-main { display: flex; align-items: center; gap: 20px; padding: 16px 32px; border-bottom: 4px solid var(--red); }
+  .header-logo { width: 70px; height: 70px; object-fit: contain; border-radius: 8px; background: var(--white); padding: 4px; flex-shrink: 0; }
+  .header-text { flex: 1; }
+  .header-title { font-family: 'Oswald', sans-serif; font-size: 1.75rem; font-weight: 700; color: var(--white); letter-spacing: 1.5px; text-transform: uppercase; line-height: 1.1; }
+  .header-title span { color: var(--red); }
+  .header-sub { font-size: 0.85rem; color: rgba(255,255,255,0.55); font-weight: 600; margin-top: 3px; }
+  .header-right { text-align: right; flex-shrink: 0; display: flex; align-items: center; gap: 22px; }
+  .teacher-name { font-family: 'Oswald', sans-serif; font-size: 1.2rem; color: var(--white); font-weight: 600; }
+  .teacher-label { font-size: 0.72rem; color: var(--red); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .clock { font-family: 'Oswald', sans-serif; font-size: 1.6rem; letter-spacing: 3px; }
+  .counts { display: flex; gap: 12px; }
+  .count-pill { font-family: 'Oswald', sans-serif; font-size: 1.05rem; font-weight: 700;
+    padding: 7px 18px; border-radius: 20px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .count-pill.out { background: var(--white); color: var(--black); }
+  .count-pill.overdue { background: var(--red); color: var(--white); }
+  .conn-dot { display: flex; align-items: center; gap: 7px; font-size: 0.8rem; font-weight: 700;
+    color: rgba(255,255,255,0.5); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #555; transition: all 0.3s; }
+  .dot.connected { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+  .dot.error { background: var(--red); }
+  .header-stripe { height: 6px; background: repeating-linear-gradient(90deg, var(--red) 0px, var(--red) 40px, var(--black) 40px, var(--black) 50px); flex-shrink: 0; }
+
+  @media (max-width: 700px) {
+    .header-main { padding: 14px 18px; flex-wrap: wrap; gap: 12px; }
+    .header-right { flex-wrap: wrap; gap: 12px; }
+    .header-title { font-size: 1.3rem; }
+    .clock { font-size: 1.2rem; }
+  }
+
+  /* BODY */
+  .body { flex: 1; padding: 30px 36px; overflow: auto; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 22px; }
+
+  .empty { display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; text-align: center; color: #444; }
+  .empty .icon { font-size: 5.5rem; margin-bottom: 18px; }
+  .empty p { font-family: 'Oswald', sans-serif; font-size: 2.1rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1px; color: #3a3a3a; }
+
+  .card { background: #171717; border: 2px solid #2c2c2c; border-top: 5px solid #444;
+    border-radius: 16px; padding: 26px 24px; transition: border-color 0.2s, background 0.2s; }
+  .card.overdue { border-color: var(--red); border-top-color: var(--red); background: #1c1414;
+    animation: pulseborder 2s infinite; }
+  @keyframes pulseborder { 0%,100%{box-shadow:0 0 0 0 rgba(204,0,0,0.35);} 50%{box-shadow:0 0 0 6px rgba(204,0,0,0.08);} }
+
+  .avatar { width: 66px; height: 66px; border-radius: 50%; background: #262626; border: 3px solid #444;
+    font-family: 'Oswald', sans-serif; font-size: 1.6rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+  .card.overdue .avatar { border-color: var(--red); }
+
+  .name { font-family: 'Oswald', sans-serif; font-size: 1.85rem; font-weight: 700;
+    letter-spacing: 0.5px; margin-bottom: 6px; }
+  .dest { font-size: 1.02rem; color: #999; font-weight: 600; margin-bottom: 16px; }
+
+  .timer { font-family: 'Oswald', sans-serif; font-size: 3rem; font-weight: 700; letter-spacing: 4px; }
+  .card.overdue .timer { color: var(--red); }
+  .overdue-lbl { font-size: 0.88rem; font-weight: 800; color: var(--red);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-top: 8px; }
+  .via { font-size: 0.82rem; color: #5a9; font-weight: 700; margin-top: 6px; }
+
+  @media (max-width: 700px) {
+    .body { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="header">
+    <div class="header-main">
+      <img class="header-logo" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS__mC142JbJZ1ugNnC-wU4NvNn67AZKL5QSg&s" alt="School Logo" onerror="this.style.display='none'">
+      <div class="header-text">
+        <div class="header-title">Students <span>Out</span></div>
+        <div class="header-sub">Classroom Management System</div>
+      </div>
+      <div class="header-right">
+        <div class="counts">
+          <span class="count-pill out"><span id="activeCount">0</span> Out</span>
+          <span class="count-pill overdue" id="overduePill" style="display:none"><span id="overdueCount">0</span> Overdue</span>
+        </div>
+        <div class="clock" id="clock">--:--</div>
+        <div>
+          <div class="teacher-label">Teacher</div>
+          <div class="teacher-name">Mrs. Williams</div>
+        </div>
+        <div class="conn-dot"><div class="dot" id="connDot"></div><span id="connLabel">Connecting…</span></div>
+      </div>
+    </div>
+    <div class="header-stripe"></div>
+  </div>
+  <div class="body">
+    <div class="grid" id="grid">
+      <div class="empty"><div class="icon">✅</div><p>All students are in class</p></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const FIREBASE_URL = "https://hall-pass-program-default-rtdb.firebaseio.com/";
+  const app = initializeApp({ databaseURL: FIREBASE_URL });
+  const db = getDatabase(app);
+
+  // Connection indicator
+  onValue(ref(db, '.info/connected'), snap => {
+    const ok = snap.val();
+    document.getElementById('connDot').className = 'dot ' + (ok ? 'connected' : 'error');
+    document.getElementById('connLabel').textContent = ok ? 'Live' : 'Reconnecting…';
+  });
+
+  let activePasses = {};
+
+  const getInit = (f,l) => (f[0]||'').toUpperCase()+(l[0]||'').toUpperCase();
+  const fmtTime = s => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+
+  onValue(ref(db, 'passes'), snap => {
+    activePasses = snap.val() || {};
+    render();
+  });
+
+  function render() {
+    const grid = document.getElementById('grid');
+    const keys = Object.keys(activePasses);
+    const now = Date.now();
+    const overdue = keys.filter(k => (now - activePasses[k].startTime) / 1000 >= 600).length;
+
+    document.getElementById('activeCount').textContent = keys.length;
+    document.getElementById('overdueCount').textContent = overdue;
+    document.getElementById('overduePill').style.display = overdue > 0 ? 'inline-block' : 'none';
+
+    if (keys.length === 0) {
+      grid.innerHTML = '<div class="empty"><div class="icon">✅</div><p>All students are in class</p></div>';
+      return;
+    }
+
+    grid.innerHTML = keys.map(id => {
+      const p = activePasses[id];
+      const elapsed = Math.floor((now - p.startTime) / 1000);
+      const od = elapsed >= 600;
+      return `<div class="card ${od ? 'overdue' : ''}" id="card-${id}">
+        <div class="avatar">${getInit(p.first||'?', p.last||'?')}</div>
+        <div class="name">${(p.first||'')} ${(p.last||'')}</div>
+        <div class="dest">${p.destination||''}</div>
+        <div class="timer" id="timer-${id}">${fmtTime(elapsed)}</div>
+        ${od ? '<div class="overdue-lbl">⚠️ Overdue (10+ min)</div>' : ''}
+        ${p.via==='request' ? '<div class="via">✅ Student Requested</div>' : ''}
+      </div>`;
+    }).join('');
+  }
+
+  // Live clock
+  function updateClock() {
+    const now = new Date();
+    const h = now.getHours() % 12 || 12;
+    const m = now.getMinutes().toString().padStart(2,'0');
+    const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+    document.getElementById('clock').textContent = `${h}:${m} ${ampm}`;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // Tick timers every second; re-render fully if the set of students changes
+  setInterval(() => {
+    const now = Date.now();
+    const keys = Object.keys(activePasses);
+    if (keys.length === 0) return;
+
+    const renderedIds = new Set([...document.querySelectorAll('[id^="card-"]')].map(el => el.id.replace('card-','')));
+    const currentIds = new Set(keys);
+    const needsRender = keys.some(k => !renderedIds.has(k)) || [...renderedIds].some(k => !currentIds.has(k));
+    if (needsRender) { render(); return; }
+
+    let overdueChanged = false;
+    keys.forEach(id => {
+      const el = document.getElementById(`timer-${id}`);
+      if (el) {
+        const elapsed = Math.floor((now - activePasses[id].startTime) / 1000);
+        el.textContent = fmtTime(elapsed);
+        const card = document.getElementById(`card-${id}`);
+        if (elapsed >= 600 && card && !card.classList.contains('overdue')) overdueChanged = true;
+      }
+    });
+    if (overdueChanged) render();
+  }, 1000);
+</script>
+
+</body>
+</html>
